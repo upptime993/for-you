@@ -23,7 +23,7 @@
   
   // Feature 4: Adaptive Particle Count
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-  const PARTICLE_N = isMobile ? 800 : 1600;
+  const PARTICLE_N = isMobile ? 500 : 1600;
 
   const SPRING = 0.09;
   const FRICTION = 0.80;
@@ -170,55 +170,63 @@
   }
 
   // ═══════════ TEXT PIXEL SAMPLING ═══════════
+  const S = 600; // Fixed sampling canvas size (smaller = faster on mobile)
   const off = document.createElement('canvas');
-  off.width = 800;
-  off.height = 800;
+  off.width = S;
+  off.height = S;
   const oCtx = off.getContext('2d', { willReadFrequently: true });
 
   function sampleText(text, fontRatio) {
-    oCtx.clearRect(0, 0, 800, 800);
+    oCtx.clearRect(0, 0, S, S);
 
-    let fs = 800 * fontRatio;
+    let fs = S * fontRatio;
     oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
+    // Use 'alphabetic' baseline (most reliable across all browsers)
     oCtx.textAlign = 'center';
-    oCtx.textBaseline = 'middle';
+    oCtx.textBaseline = 'alphabetic';
 
-    // Ensure it fits within 82% of width and 75% of height to prevent truncation on mobile & desktop
-    const maxW = 800 * 0.82;
-    const maxH = 800 * 0.75;
-    
-    let metrics = oCtx.measureText(text);
-    let textW = metrics.width;
-    let textH = fs * 0.8;
-    
-    let scaleFactor = 1.0;
-    if (textW > maxW) {
-      scaleFactor = Math.min(scaleFactor, maxW / textW);
-    }
-    if (textH > maxH) {
-      scaleFactor = Math.min(scaleFactor, maxH / textH);
-    }
-    
-    if (scaleFactor < 1.0) {
-      fs = fs * scaleFactor;
+    // Measure real bounds
+    let m = oCtx.measureText(text);
+    let textW = m.width;
+    let asc = m.actualBoundingBoxAscent  || (fs * 0.82);
+    let desc = m.actualBoundingBoxDescent || (fs * 0.18);
+    let textH = asc + desc;
+
+    // Scale down if too wide or tall for safe area
+    const maxW = S * 0.88;
+    const maxH = S * 0.72;
+    let sf = 1.0;
+    if (textW > maxW) sf = Math.min(sf, maxW / textW);
+    if (textH > maxH) sf = Math.min(sf, maxH / textH);
+    if (sf < 1.0) {
+      fs *= sf;
       oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
+      m = oCtx.measureText(text);
+      asc = m.actualBoundingBoxAscent  || (fs * 0.82);
+      desc = m.actualBoundingBoxDescent || (fs * 0.18);
     }
+
+    // Manually center: baseline Y so glyph is visually centered at S/2
+    const drawY = (S / 2) + (asc - desc) / 2;
 
     oCtx.fillStyle = '#fff';
-    oCtx.fillText(text, 400, 400);
+    oCtx.fillText(text, S / 2, drawY);
 
-    const data = oCtx.getImageData(0, 0, 800, 800).data;
+    const data = oCtx.getImageData(0, 0, S, S).data;
     const pts = [];
-    const gap = 4;
+    const gap = isMobile ? 5 : 3;
+    const screenScale = Math.min(W, H) / S;
+    const halfS = S / 2;
+    const halfW = W / 2;
+    const halfH = H / 2;
 
-    for (let y = 0; y < 800; y += gap) {
-      for (let x = 0; x < 800; x += gap) {
-        if (data[(y * 800 + x) * 4 + 3] > 128) {
-          // Map to actual logical screen coordinates centered at W / 2, H / 2
-          const scale = Math.min(W, H) / 800;
-          const sx = (x - 400) * scale + (W / 2);
-          const sy = (y - 400) * scale + (H / 2);
-          pts.push(sx, sy);
+    for (let y = 0; y < S; y += gap) {
+      for (let x = 0; x < S; x += gap) {
+        if (data[(y * S + x) * 4 + 3] > 128) {
+          pts.push(
+            (x - halfS) * screenScale + halfW,
+            (y - halfS) * screenScale + halfH
+          );
         }
       }
     }
@@ -457,40 +465,35 @@
     const cx = W / 2;
     const cy = H / 2;
 
-    // Outer glow
-    ctx.fillStyle = `rgba(${Math.round(glowR)}, ${Math.round(glowG)}, ${Math.round(glowB)}, 0.08)`;
-    ctx.beginPath();
-    for (let i = 0; i < PARTICLE_N; i++) {
-      if (pal[i] <= 0) continue;
-      
-      let x = px[i];
-      let y = py[i];
-      if (isHeart) {
-        // Expand coordinates outwards from the center for the heartbeat effect
-        x = cx + (px[i] - cx) * heartPulse;
-        y = cy + (py[i] - cy) * heartPulse;
+    // Outer glow — skip on mobile for performance
+    if (!isMobile) {
+      ctx.fillStyle = `rgba(${Math.round(glowR)}, ${Math.round(glowG)}, ${Math.round(glowB)}, 0.08)`;
+      ctx.beginPath();
+      for (let i = 0; i < PARTICLE_N; i++) {
+        if (pal[i] <= 0) continue;
+        let x = px[i], y = py[i];
+        if (isHeart) {
+          x = cx + (px[i] - cx) * heartPulse;
+          y = cy + (py[i] - cy) * heartPulse;
+        }
+        const r = psz[i] * 4 * heartPulse;
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, 6.2832);
       }
-      
-      const r = psz[i] * 4 * heartPulse;
-      ctx.moveTo(x + r, y);
-      ctx.arc(x, y, r, 0, 6.2832);
+      ctx.fill();
     }
-    ctx.fill();
 
     // Core
     ctx.fillStyle = `rgba(${Math.round(coreR)}, ${Math.round(coreG)}, ${Math.round(coreB)}, 0.88)`;
     ctx.beginPath();
     for (let i = 0; i < PARTICLE_N; i++) {
       if (pal[i] <= 0) continue;
-
-      let x = px[i];
-      let y = py[i];
+      let x = px[i], y = py[i];
       if (isHeart) {
         x = cx + (px[i] - cx) * heartPulse;
         y = cy + (py[i] - cy) * heartPulse;
       }
-
-      const r = psz[i] * heartPulse;
+      const r = psz[i] * (isMobile ? 1.3 : 1.0) * heartPulse;
       ctx.moveTo(x + r, y);
       ctx.arc(x, y, r, 0, 6.2832);
     }
@@ -501,14 +504,11 @@
     ctx.beginPath();
     for (let i = 0; i < PARTICLE_N; i++) {
       if (pal[i] <= 0) continue;
-
-      let x = px[i];
-      let y = py[i];
+      let x = px[i], y = py[i];
       if (isHeart) {
         x = cx + (px[i] - cx) * heartPulse;
         y = cy + (py[i] - cy) * heartPulse;
       }
-
       const r = psz[i] * 0.35 * heartPulse;
       ctx.moveTo(x + r, y);
       ctx.arc(x, y, r, 0, 6.2832);
@@ -523,7 +523,7 @@
 
   function initRain() {
     rainCols = [];
-    const colW = 18;
+    const colW = isMobile ? 28 : 18;
     const numCols = Math.ceil(W / colW) + 4;
 
     for (let i = 0; i < numCols; i++) {
