@@ -171,26 +171,25 @@
 
   // ═══════════ TEXT PIXEL SAMPLING ═══════════
   const off = document.createElement('canvas');
+  off.width = 800;
+  off.height = 800;
   const oCtx = off.getContext('2d', { willReadFrequently: true });
 
   function sampleText(text, fontRatio) {
-    const sw = Math.floor(W);
-    const sh = Math.floor(H);
-    off.width = sw; off.height = sh;
-    oCtx.clearRect(0, 0, sw, sh);
+    oCtx.clearRect(0, 0, 800, 800);
 
-    let fs = Math.min(sw, sh) * fontRatio;
+    let fs = 800 * fontRatio;
     oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
     oCtx.textAlign = 'center';
     oCtx.textBaseline = 'middle';
 
     // Ensure it fits within 82% of width and 75% of height to prevent truncation on mobile & desktop
-    const maxW = sw * 0.82;
-    const maxH = sh * 0.75;
+    const maxW = 800 * 0.82;
+    const maxH = 800 * 0.75;
     
     let metrics = oCtx.measureText(text);
     let textW = metrics.width;
-    let textH = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) || (fs * 0.8);
+    let textH = fs * 0.8;
     
     let scaleFactor = 1.0;
     if (textW > maxW) {
@@ -206,16 +205,20 @@
     }
 
     oCtx.fillStyle = '#fff';
-    oCtx.fillText(text, sw / 2, sh / 2);
+    oCtx.fillText(text, 400, 400);
 
-    const data = oCtx.getImageData(0, 0, sw, sh).data;
+    const data = oCtx.getImageData(0, 0, 800, 800).data;
     const pts = [];
-    const gap = Math.max(2, Math.floor(Math.min(sw, sh) / 220));
+    const gap = 4;
 
-    for (let y = 0; y < sh; y += gap) {
-      for (let x = 0; x < sw; x += gap) {
-        if (data[(y * sw + x) * 4 + 3] > 128) {
-          pts.push(x, y);
+    for (let y = 0; y < 800; y += gap) {
+      for (let x = 0; x < 800; x += gap) {
+        if (data[(y * 800 + x) * 4 + 3] > 128) {
+          // Map to actual logical screen coordinates centered at W / 2, H / 2
+          const scale = Math.min(W, H) / 800;
+          const sx = (x - 400) * scale + (W / 2);
+          const sy = (y - 400) * scale + (H / 2);
+          pts.push(sx, sy);
         }
       }
     }
