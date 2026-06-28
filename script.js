@@ -41,7 +41,7 @@
     { text: 'My',        dur: 1100,  fs: 0.24,  title: '♥ My' },
     { text: 'Favorite',  dur: 1200,  fs: 0.22,  title: '♥ Favorite' },
     { text: 'Girls',     dur: 1500,  fs: 0.24,  title: '♥ Girls' },
-    { text: null,        dur: 4000,  type: 'heart', title: 'I Love You ♥' },
+    { text: null,        dur: 5500,  type: 'heart', title: 'I Love You ♥' },
     { text: null,        dur: 3000,  type: 'fireworks', title: '♥ For You ♥' },
     { text: null,        dur: 9999999, type: 'letter', title: 'Surat Untukmu ♥' },
   ];
@@ -179,11 +179,33 @@
     off.width = sw; off.height = sh;
     oCtx.clearRect(0, 0, sw, sh);
 
-    const fs = Math.min(sw, sh) * fontRatio;
-    oCtx.fillStyle = '#fff';
+    let fs = Math.min(sw, sh) * fontRatio;
     oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
     oCtx.textAlign = 'center';
     oCtx.textBaseline = 'middle';
+
+    // Ensure it fits within 82% of width and 75% of height to prevent truncation on mobile & desktop
+    const maxW = sw * 0.82;
+    const maxH = sh * 0.75;
+    
+    let metrics = oCtx.measureText(text);
+    let textW = metrics.width;
+    let textH = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) || (fs * 0.8);
+    
+    let scaleFactor = 1.0;
+    if (textW > maxW) {
+      scaleFactor = Math.min(scaleFactor, maxW / textW);
+    }
+    if (textH > maxH) {
+      scaleFactor = Math.min(scaleFactor, maxH / textH);
+    }
+    
+    if (scaleFactor < 1.0) {
+      fs = fs * scaleFactor;
+      oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
+    }
+
+    oCtx.fillStyle = '#fff';
     oCtx.fillText(text, sw / 2, sh / 2);
 
     const data = oCtx.getImageData(0, 0, sw, sh).data;
