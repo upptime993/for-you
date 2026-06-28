@@ -860,7 +860,10 @@
       console.warn("Background music autoplay was blocked/failed:", err);
     });
     landingScreen.classList.add('hide');
-    startSequence(performance.now());
+    // Delay sequence start until intro pulse animation finishes
+    setTimeout(() => {
+      startSequence(performance.now());
+    }, INTRO_DUR);
   });
 
   // Restart button click
