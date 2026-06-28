@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>♥ For You</title>
+  <!-- SEO & Meta Tags (Fix 2) -->
+  <meta name="description" content="A special message for someone special ♥" />
+  <meta property="og:title" content="♥ For You" />
+  <meta property="og:description" content="Open this to see something beautiful..." />
+  <meta property="og:image" content="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>" />
+  <!-- Favicon (Feature 10) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Dancing+Script:wght@500;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=2.2" />
+</head>
+
+<body>
+  <!-- Landing Screen (Feature 2) -->
+  <div id="landingScreen">
+    <div class="landing-content">
+      <span class="landing-icon">💌</span>
+      <h1 class="landing-title">Aku punya sesuatu untukmu...</h1>
+      <p class="landing-subtitle">Klik tombol di bawah untuk membukanya</p>
+      <button id="btnOpen" class="landing-btn">Buka</button>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <!-- Heart center message overlay (DOM for crisp text) -->
+  <div id="heartMessage">
+    <p class="hm-line1">I Love</p>
+    <p class="hm-heart">♥</p>
+    <p class="hm-line2">You</p>
+    <p class="hm-name">Si Kecil Imut</p>
+  </div>
+
+  <!-- Letter overlay container (Feature 6 & Restart) -->
+  <div id="letterContainer">
+    <div class="letter-box">
+      <div id="letterText" class="letter-text"></div>
+      <button id="btnRestart" class="letter-btn-restart">Mulai Ulang ♥</button>
+    </div>
+  </div>
+
+  <!-- Hint overlay for touch to skip (Feature 3) -->
+  <div id="skipHint">Ketuk layar untuk mempercepat ✧</div>
+
+  <script src="script.js?v=2.2"></script>
+</body>
+
+</html>
