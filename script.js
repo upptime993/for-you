@@ -7,7 +7,7 @@
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const heartMsg = document.getElementById('heartMessage');
-  
+
   // DOM Elements for new features
   const landingScreen = document.getElementById('landingScreen');
   const btnOpen = document.getElementById('btnOpen');
@@ -20,10 +20,10 @@
 
   // ═══════════ CONFIGURATION ═══════════
   const RAIN_CHARS = '♥♡❥✦❀✿•°♥♡❤';
-  
+
   // Feature 4: Adaptive Particle Count
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-  const PARTICLE_N = isMobile ? 350 : 1600;
+  const PARTICLE_N = isMobile ? 500 : 1600;
 
   const SPRING = 0.09;
   const FRICTION = 0.80;
@@ -33,17 +33,17 @@
 
   // Updated Sequence (excluding Fitur 8 & non-looping at the end)
   const SEQ = [
-    { text: '3',         dur: 1400,  fs: 0.35,  title: '3...' },
-    { text: '2',         dur: 1400,  fs: 0.35,  title: '2...' },
-    { text: '1',         dur: 1400,  fs: 0.35,  title: '1...' },
-    { text: 'You',       dur: 1100,  fs: 0.22,  title: '♥ You' },
-    { text: 'Are',       dur: 1100,  fs: 0.22,  title: '♥ Are' },
-    { text: 'My',        dur: 1100,  fs: 0.22,  title: '♥ My' },
-    { text: 'Favorite',  dur: 1200,  fs: 0.18,  title: '♥ Favorite' },
-    { text: 'Girls',     dur: 1500,  fs: 0.22,  title: '♥ Girls' },
-    { text: null,        dur: 5500,  type: 'heart', title: 'I Love You ♥' },
-    { text: null,        dur: 3000,  type: 'fireworks', title: '♥ For You ♥' },
-    { text: null,        dur: 9999999, type: 'letter', title: 'Surat Untukmu ♥' },
+    { text: '3', dur: 1400, fs: 0.35, title: '3...' },
+    { text: '2', dur: 1400, fs: 0.35, title: '2...' },
+    { text: '1', dur: 1400, fs: 0.35, title: '1...' },
+    { text: 'You', dur: 1100, fs: 0.24, title: '♥ You' },
+    { text: 'Are', dur: 1100, fs: 0.24, title: '♥ Are' },
+    { text: 'My', dur: 1100, fs: 0.24, title: '♥ My' },
+    { text: 'Favorite', dur: 1200, fs: 0.22, title: '♥ Favorite' },
+    { text: 'Girls', dur: 1500, fs: 0.24, title: '♥ Girls' },
+    { text: null, dur: 5500, type: 'heart', title: 'I Love You ♥' },
+    { text: null, dur: 3000, type: 'fireworks', title: '♥ For You ♥' },
+    { text: null, dur: 9999999, type: 'letter', title: 'Surat Untukmu ♥' },
   ];
 
   // ═══════════ AUDIO SYSTEM (Feature 1) ═══════════
@@ -73,11 +73,11 @@
       osc1.type = 'sine';
       osc1.frequency.setValueAtTime(75, time);
       osc1.frequency.exponentialRampToValueAtTime(20, time + 0.15);
-      
+
       gain1.gain.setValueAtTime(0, time);
       gain1.gain.linearRampToValueAtTime(0.8, time + 0.02);
       gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
-      
+
       osc1.connect(gain1);
       gain1.connect(audioCtx.destination);
 
@@ -85,7 +85,7 @@
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
       const filter = audioCtx.createBiquadFilter();
-      
+
       osc2.type = 'triangle';
       osc2.frequency.setValueAtTime(150, time);
       osc2.frequency.exponentialRampToValueAtTime(40, time + 0.15);
@@ -100,7 +100,7 @@
       osc2.connect(filter);
       filter.connect(gain2);
       gain2.connect(audioCtx.destination);
-      
+
       osc1.start(time);
       osc1.stop(time + 0.25);
       osc2.start(time);
@@ -143,8 +143,8 @@
   }
 
   // ═══════════ PARTICLE ARRAYS ═══════════
-  const px  = new Float32Array(PARTICLE_N);
-  const py  = new Float32Array(PARTICLE_N);
+  const px = new Float32Array(PARTICLE_N);
+  const py = new Float32Array(PARTICLE_N);
   const pvx = new Float32Array(PARTICLE_N);
   const pvy = new Float32Array(PARTICLE_N);
   const ptx = new Float32Array(PARTICLE_N);
@@ -188,13 +188,13 @@
     // Measure real bounds
     let m = oCtx.measureText(text);
     let textW = m.width;
-    let asc = m.actualBoundingBoxAscent  || (fs * 0.82);
+    let asc = m.actualBoundingBoxAscent || (fs * 0.82);
     let desc = m.actualBoundingBoxDescent || (fs * 0.18);
     let textH = asc + desc;
 
-    // Scale down if too wide or tall for safe area (generous padding)
-    const maxW = S * 0.85;
-    const maxH = S * 0.60;
+    // Scale down if too wide or tall for safe area
+    const maxW = S * 0.88;
+    const maxH = S * 0.72;
     let sf = 1.0;
     if (textW > maxW) sf = Math.min(sf, maxW / textW);
     if (textH > maxH) sf = Math.min(sf, maxH / textH);
@@ -202,16 +202,12 @@
       fs *= sf;
       oCtx.font = `900 ${fs}px "Inter", Arial, sans-serif`;
       m = oCtx.measureText(text);
-      asc = m.actualBoundingBoxAscent  || (fs * 0.82);
+      asc = m.actualBoundingBoxAscent || (fs * 0.82);
       desc = m.actualBoundingBoxDescent || (fs * 0.18);
     }
 
     // Manually center: baseline Y so glyph is visually centered at S/2
-    // Then clamp so the glyph never extends beyond canvas bounds
-    let drawY = (S / 2) + (asc - desc) / 2;
-    const pad = 10;
-    if (drawY - asc < pad) drawY = asc + pad;            // top clamp
-    if (drawY + desc > S - pad) drawY = S - pad - desc;  // bottom clamp
+    const drawY = (S / 2) + (asc - desc) / 2;
 
     oCtx.fillStyle = '#fff';
     oCtx.fillText(text, S / 2, drawY);
@@ -276,7 +272,15 @@
         pty[i] = Math.random() * H;
         pal[i] = 0;
       } else {
-        const idx = (i % n) * 2;
+        // If there are MORE sample points than particles, spread the particles
+        // EVENLY across all points so the entire shape is represented (otherwise
+        // the tail points are never assigned and long words get truncated).
+        // If there are fewer points than particles, wrap so the extras overlap
+        // and densify the shape.
+        const pointIndex = n > PARTICLE_N
+          ? Math.floor((i * n) / PARTICLE_N)
+          : (i % n);
+        const idx = pointIndex * 2;
         ptx[i] = pts[idx];
         pty[i] = pts[idx + 1];
         pal[i] = 1;
@@ -338,8 +342,11 @@
       pvx[i] += (tx - px[i]) * SPRING;
       pvy[i] += (ty - py[i]) * SPRING;
 
-      // Mouse attraction
-      if (mouseX > -1000 && mouseY > -1000) {
+      // Mouse attraction — DESKTOP POINTER ONLY.
+      // On a touch screen the finger sits right on top of the text, so this
+      // force sucks the glyph's particles toward the finger and garbles it.
+      // Disabled on mobile to keep the text readable.
+      if (!isMobile && mouseX > -1000 && mouseY > -1000) {
         const dx = mouseX - px[i];
         const dy = mouseY - py[i];
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -469,70 +476,56 @@
     const cx = W / 2;
     const cy = H / 2;
 
-    if (isMobile) {
-      // MOBILE: Single-pass rendering for maximum performance
-      // Slightly larger particles to compensate for fewer count
-      ctx.fillStyle = `rgba(${Math.round(coreR)}, ${Math.round(coreG)}, ${Math.round(coreB)}, 0.92)`;
-      ctx.beginPath();
-      for (let i = 0; i < PARTICLE_N; i++) {
-        if (pal[i] <= 0) continue;
-        let x = px[i], y = py[i];
-        if (isHeart) {
-          x = cx + (px[i] - cx) * heartPulse;
-          y = cy + (py[i] - cy) * heartPulse;
-        }
-        const r = psz[i] * 1.5 * heartPulse;
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, 6.2832);
-      }
-      ctx.fill();
-    } else {
-      // DESKTOP: Full 3-pass rendering (glow + core + bright center)
+    // Apply the heartbeat as ONE canvas transform instead of recomputing the
+    // pulsed position+radius for every particle inside each draw loop.
+    const pulsing = isHeart && heartPulse !== 1.0;
+    if (pulsing) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(heartPulse, heartPulse);
+      ctx.translate(-cx, -cy);
+    }
+
+    // Outer glow — skip on mobile for performance
+    if (!isMobile) {
       ctx.fillStyle = `rgba(${Math.round(glowR)}, ${Math.round(glowG)}, ${Math.round(glowB)}, 0.08)`;
       ctx.beginPath();
       for (let i = 0; i < PARTICLE_N; i++) {
         if (pal[i] <= 0) continue;
-        let x = px[i], y = py[i];
-        if (isHeart) {
-          x = cx + (px[i] - cx) * heartPulse;
-          y = cy + (py[i] - cy) * heartPulse;
-        }
-        const r = psz[i] * 4 * heartPulse;
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, 6.2832);
+        const r = psz[i] * 4;
+        ctx.moveTo(px[i] + r, py[i]);
+        ctx.arc(px[i], py[i], r, 0, 6.2832);
       }
       ctx.fill();
+    }
 
-      ctx.fillStyle = `rgba(${Math.round(coreR)}, ${Math.round(coreG)}, ${Math.round(coreB)}, 0.88)`;
-      ctx.beginPath();
-      for (let i = 0; i < PARTICLE_N; i++) {
-        if (pal[i] <= 0) continue;
-        let x = px[i], y = py[i];
-        if (isHeart) {
-          x = cx + (px[i] - cx) * heartPulse;
-          y = cy + (py[i] - cy) * heartPulse;
-        }
-        const r = psz[i] * heartPulse;
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, 6.2832);
-      }
-      ctx.fill();
+    // Core
+    ctx.fillStyle = `rgba(${Math.round(coreR)}, ${Math.round(coreG)}, ${Math.round(coreB)}, 0.88)`;
+    ctx.beginPath();
+    const coreScale = isMobile ? 1.3 : 1.0;
+    for (let i = 0; i < PARTICLE_N; i++) {
+      if (pal[i] <= 0) continue;
+      const r = psz[i] * coreScale;
+      ctx.moveTo(px[i] + r, py[i]);
+      ctx.arc(px[i], py[i], r, 0, 6.2832);
+    }
+    ctx.fill();
 
+    // Bright center — skip on mobile (the core layer already reads as bright,
+    // and this saves a whole extra per-particle pass each frame).
+    if (!isMobile) {
       ctx.fillStyle = isHeart ? 'rgba(255,210,240,0.95)' : 'rgba(255,255,250,0.95)';
       ctx.beginPath();
       for (let i = 0; i < PARTICLE_N; i++) {
         if (pal[i] <= 0) continue;
-        let x = px[i], y = py[i];
-        if (isHeart) {
-          x = cx + (px[i] - cx) * heartPulse;
-          y = cy + (py[i] - cy) * heartPulse;
-        }
-        const r = psz[i] * 0.35 * heartPulse;
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, 6.2832);
+        const r = psz[i] * 0.35;
+        ctx.moveTo(px[i] + r, py[i]);
+        ctx.arc(px[i], py[i], r, 0, 6.2832);
       }
       ctx.fill();
     }
+
+    if (pulsing) ctx.restore();
 
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -542,11 +535,14 @@
 
   function initRain() {
     rainCols = [];
-    const colW = isMobile ? 28 : 18;
+    // Wider columns + shorter trails on mobile = far fewer fillText() calls per
+    // frame (the matrix rain runs during every phase, including the heart).
+    const colW = isMobile ? 40 : 18;
     const numCols = Math.ceil(W / colW) + 4;
+    const maxTrail = isMobile ? 8 : 14;
 
     for (let i = 0; i < numCols; i++) {
-      const trailLen = 6 + Math.floor(Math.random() * 14);
+      const trailLen = 6 + Math.floor(Math.random() * maxTrail);
       const chars = [];
       for (let j = 0; j < trailLen; j++) {
         chars.push(RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)]);
@@ -627,12 +623,12 @@
     seqIdx = 0;
     seqStart = now;
     started = true;
-    
+
     // Reset overlays
-    heartMsg.classList.remove('visible');
+    heartMsg.classList.remove('visible', 'beating');
     letterContainer.classList.remove('visible');
     btnRestart.classList.remove('show');
-    
+
     lastHeartbeatCycle = -1;
     if (typingInterval) clearInterval(typingInterval);
 
@@ -660,7 +656,7 @@
     } else {
       // Heart & finale: Pink / Magenta romantic colors
       tCoreR = 255; tCoreG = 110; tCoreB = 180;
-      tGlowR = 255; tGlowG = 30;  tGlowB = 130;
+      tGlowR = 255; tGlowG = 30; tGlowB = 130;
     }
 
     // Play SFX (Feature 1)
@@ -673,18 +669,18 @@
       triggerFlash();
       const pts = generateHeartPoints();
       assignTargets(pts);
-      setTimeout(() => heartMsg.classList.add('visible'), 700);
+      setTimeout(() => heartMsg.classList.add('visible', 'beating'), 700);
 
       // Will be triggered automatically by the render loop
       lastHeartbeatCycle = -1;
     } else if (step.type === 'fireworks') {
-      heartMsg.classList.remove('visible');
+      heartMsg.classList.remove('visible', 'beating');
       scatterParticles();
       spawnFireworks();
     } else if (step.type === 'letter') {
-      heartMsg.classList.remove('visible');
+      heartMsg.classList.remove('visible', 'beating');
       scatterSlowly();
-      
+
       // Feature 6: Typing animation trigger
       letterContainer.classList.add('visible');
       setTimeout(() => {
@@ -694,7 +690,7 @@
       }, 600);
     } else if (step.text) {
       triggerFlash();
-      heartMsg.classList.remove('visible');
+      heartMsg.classList.remove('visible', 'beating');
       const pts = sampleText(step.text, step.fs);
       assignTargets(pts);
     }
@@ -739,9 +735,9 @@
     const el = document.getElementById(elementId);
     el.textContent = '';
     let idx = 0;
-    
+
     if (typingInterval) clearInterval(typingInterval);
-    
+
     typingInterval = setInterval(() => {
       if (idx < text.length) {
         el.textContent += text.charAt(idx);
@@ -806,41 +802,28 @@
     glowG += (tGlowG - glowG) * 0.06;
     glowB += (tGlowB - glowB) * 0.06;
 
-    const step = SEQ[seqIdx];
-    const isHeartPhase = step && step.type === 'heart';
-
-    // Skip heavy effects on mobile during heart phase for smooth animation
-    if (!(isMobile && isHeartPhase)) {
-      drawAmbientGlow(now);
-      updateDrawRain();
-    }
+    drawAmbientGlow(now);
+    updateDrawRain();
     updateSequence(now);
-    if (!(isMobile && isHeartPhase)) {
-      updateDrawSparkles();
-    }
+    updateDrawSparkles();
     updateDrawFireworks();
     updateParticles(now);
 
-    drawParticles(isHeartPhase, now);
+    const step = SEQ[seqIdx];
+    const isHeart = step && step.type === 'heart';
+    drawParticles(isHeart, now);
 
-    // Synchronize HTML heart message scale & sound with heartbeat pulse
+    // Heartbeat SOUND sync only. The visual "beat" of the DOM message is driven
+    // by a CSS animation (.beating class) instead of a per-frame JS transform —
+    // re-transforming a blurred, multi-shadow text node every frame was a major
+    // mobile performance cost.
     if (isHeart) {
       const cycleIdx = Math.floor((now - seqStart) / 1200);
       if (cycleIdx > lastHeartbeatCycle) {
         playHeartbeatSFX();
         lastHeartbeatCycle = cycleIdx;
       }
-
-      const cycleTime = (now - seqStart) % 1200;
-      let pulse = 1.0;
-      if (cycleTime >= 0 && cycleTime < 160) {
-        pulse = 1.0 + 0.22 * Math.sin((cycleTime / 160) * Math.PI);
-      } else if (cycleTime >= 190 && cycleTime < 350) {
-        pulse = 1.0 + 0.16 * Math.sin(((cycleTime - 190) / 160) * Math.PI);
-      }
-      heartMsg.style.transform = `scale(${pulse})`;
     } else {
-      heartMsg.style.transform = '';
       lastHeartbeatCycle = -1;
     }
 
@@ -867,7 +850,7 @@
 
   // ═══════════ BIND EVENTS ═══════════
   window.addEventListener('resize', resize);
-  
+
   // Anti-flicker fade-in on load (Fix 3)
   window.addEventListener('load', () => {
     document.body.classList.add('loaded');
