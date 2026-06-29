@@ -362,6 +362,62 @@ body.loaded {
   box-shadow: 0 0 15px rgba(255, 105, 180, 0.3);
 }
 
+/* ═══════ CONTINUE BUTTON (heart phase, Mod 3) ═══════ */
+#btnContinue {
+  position: fixed;
+  left: 50%;
+  top: 64%;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 40;
+  background: rgba(10, 5, 8, 0.35);
+  border: 1px solid rgba(255, 105, 180, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'Inter', sans-serif;
+  padding: 0.7rem 2.2rem;
+  font-size: 0.9rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 50px;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: 0 0 15px rgba(255, 105, 180, 0.25);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+#btnContinue.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+  animation: continueGlow 2.4s ease-in-out infinite;
+}
+
+#btnContinue:hover {
+  background: rgba(255, 105, 180, 0.15);
+  border-color: rgba(255, 105, 180, 0.9);
+  color: #fff;
+}
+
+#btnContinue:active {
+  transform: translateX(-50%) translateY(1px) scale(0.97);
+}
+
+@keyframes continueGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(255, 105, 180, 0.25);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(255, 105, 180, 0.55);
+  }
+}
+
 /* ═══════ SKIP HINT ═══════ */
 #skipHint {
   position: fixed;
@@ -425,5 +481,117 @@ body.loaded {
   .hm-name {
     text-shadow: 0 0 22px rgba(255, 150, 200, 0.8);
     animation: none;
+  }
+}
+
+/* ═══════ FACE PORTRAIT OVERLAY ═══════ */
+#faceOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+#faceOverlay.visible {
+  opacity: 1;
+}
+
+/* Glowing ring behind the portrait */
+.face-glow-ring {
+  position: absolute;
+  width: min(78vw, 78vh);
+  height: min(78vw, 78vh);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 105, 180, 0.12) 0%,
+    rgba(200, 50, 140, 0.08) 40%,
+    rgba(120, 20, 80, 0.04) 65%,
+    transparent 80%);
+  animation: faceRingPulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* The sketch image itself */
+#facePortrait {
+  position: relative;
+  width: min(75vw, 75vh);
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px rgba(255, 105, 180, 0.7))
+          drop-shadow(0 0 45px rgba(200, 50, 140, 0.35));
+  opacity: 0;
+  transform: scale(0.88);
+  transition: opacity 1.5s ease 0.3s, transform 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s;
+}
+
+#faceOverlay.visible #facePortrait {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Floating sparkle particles around the portrait */
+.face-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.face-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 200, 230, 0.9);
+  box-shadow: 0 0 8px rgba(255, 105, 180, 0.8), 0 0 16px rgba(255, 105, 180, 0.4);
+  animation: faceSparkFloat 4s ease-in-out infinite;
+  opacity: 0;
+}
+
+#faceOverlay.visible .face-spark {
+  opacity: 1;
+}
+
+.face-spark:nth-child(1) { top: 18%; left: 22%; animation-delay: 0s;   animation-duration: 3.5s; }
+.face-spark:nth-child(2) { top: 12%; left: 55%; animation-delay: 0.5s; animation-duration: 4.2s; }
+.face-spark:nth-child(3) { top: 30%; left: 78%; animation-delay: 1.0s; animation-duration: 3.8s; }
+.face-spark:nth-child(4) { top: 55%; left: 82%; animation-delay: 1.5s; animation-duration: 4.5s; }
+.face-spark:nth-child(5) { top: 75%; left: 65%; animation-delay: 0.3s; animation-duration: 3.2s; }
+.face-spark:nth-child(6) { top: 80%; left: 35%; animation-delay: 0.8s; animation-duration: 4.0s; }
+.face-spark:nth-child(7) { top: 60%; left: 15%; animation-delay: 1.2s; animation-duration: 3.6s; }
+.face-spark:nth-child(8) { top: 35%; left: 18%; animation-delay: 0.6s; animation-duration: 4.3s; }
+
+@keyframes faceRingPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes faceSparkFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-15px) translateX(8px) scale(1.3);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-5px) translateX(-6px) scale(0.8);
+    opacity: 0.6;
+  }
+  75% {
+    transform: translateY(-20px) translateX(4px) scale(1.1);
+    opacity: 0.9;
   }
 }

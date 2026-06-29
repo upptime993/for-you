@@ -20,7 +20,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Dancing+Script:wght@500;700&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.7" />
+  <link rel="stylesheet" href="styles.css?v=2.8" />
 </head>
 
 <body>
@@ -44,6 +44,22 @@
     <p class="hm-name">Si Kecil Imut</p>
   </div>
 
+  <!-- Face portrait overlay (shows muka.png with particle effects) -->
+  <div id="faceOverlay">
+    <div class="face-glow-ring"></div>
+    <img id="facePortrait" src="muka.png" alt="" />
+    <div class="face-sparkles">
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+      <span class="face-spark"></span>
+    </div>
+  </div>
+
   <!-- Letter overlay container (Feature 6 & Restart) -->
   <div id="letterContainer">
     <div class="letter-box">
@@ -52,10 +68,13 @@
     </div>
   </div>
 
+  <!-- Manual continue button shown during the heart phase (Mod 3) -->
+  <button id="btnContinue" class="continue-btn">Lanjut ♥</button>
+
   <!-- Hint overlay for touch to skip (Feature 3) -->
   <div id="skipHint">Ketuk layar untuk mempercepat ✧</div>
 
-  <script src="script.js?v=2.7"></script>
+  <script src="script.js?v=2.8"></script>
 </body>
 
 </html>

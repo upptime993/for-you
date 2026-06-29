@@ -14,7 +14,9 @@
   const letterContainer = document.getElementById('letterContainer');
   const letterText = document.getElementById('letterText');
   const btnRestart = document.getElementById('btnRestart');
+  const btnContinue = document.getElementById('btnContinue');
   const skipHint = document.getElementById('skipHint');
+  const faceOverlay = document.getElementById('faceOverlay');
 
   let W, H, dpr;
 
@@ -22,8 +24,10 @@
   const RAIN_CHARS = '♥♡❥✦❀✿•°♥♡❤';
 
   // Feature 4: Adaptive Particle Count
+  // (mobile bumped a little so the photo sketch is dense enough to recognise;
+  //  still cheap thanks to the heart-phase draw optimisations)
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-  const PARTICLE_N = isMobile ? 500 : 1600;
+  const PARTICLE_N = isMobile ? 650 : 1600;
 
   const SPRING = 0.09;
   const FRICTION = 0.80;
@@ -31,19 +35,35 @@
   // Feature 6: Personal Letter Text
   const LETTER_CONTENT = "makasih yah cantikk\nkamu udah mau sama aku dan nerima segala kekurangan ku,\n\naku gak bisa janjiin apa apa untuk sekarang cuma aku bakal berusaha buat bikin kamu selalu bahagia dan terus nyaman sama aku\n\n♥";
 
+  // Tone palettes for the particle color interpolation (Feature 7).
+  // cr/cg/cb = core color, gr/gg/gb = glow color.
+  const TONES = {
+    cool:     { cr: 190, cg: 240, cb: 255, gr: 100, gg: 190, gb: 255 }, // countdown
+    rose:     { cr: 255, cg: 170, cb: 205, gr: 255, gg: 80,  gb: 150 }, // intimate messages
+    gold:     { cr: 255, cg: 220, cb: 120, gr: 255, gg: 150, gb: 40  }, // "favorite girls"
+    romantic: { cr: 255, cg: 110, cb: 180, gr: 255, gg: 30,  gb: 130 }, // heart & finale
+    sketch:   { cr: 235, cg: 230, cb: 245, gr: 190, gg: 160, gb: 210 }, // photo sketch (soft silver)
+  };
+
   // Updated Sequence (excluding Fitur 8 & non-looping at the end)
+  //  - 'music: true'  → start the background song when this step shows
+  //  - 'manual: true' → do NOT auto-advance; wait for the "Lanjut" button
   const SEQ = [
-    { text: '3', dur: 1400, fs: 0.35, title: '3...' },
-    { text: '2', dur: 1400, fs: 0.35, title: '2...' },
-    { text: '1', dur: 1400, fs: 0.35, title: '1...' },
-    { text: 'You', dur: 1100, fs: 0.24, title: '♥ You' },
-    { text: 'Are', dur: 1100, fs: 0.24, title: '♥ Are' },
-    { text: 'My', dur: 1100, fs: 0.24, title: '♥ My' },
-    { text: 'Favorite', dur: 1200, fs: 0.22, title: '♥ Favorite' },
-    { text: 'Girls', dur: 1500, fs: 0.24, title: '♥ Girls' },
-    { text: null, dur: 5500, type: 'heart', title: 'I Love You ♥' },
-    { text: null, dur: 3000, type: 'fireworks', title: '♥ For You ♥' },
-    { text: null, dur: 9999999, type: 'letter', title: 'Surat Untukmu ♥' },
+    { text: '3', dur: 1400, fs: 0.35, title: '3...', tone: 'cool' },
+    { text: '2', dur: 1400, fs: 0.35, title: '2...', tone: 'cool' },
+    { text: '1', dur: 2400, fs: 0.35, title: '1...', tone: 'cool' },
+    { text: 'nungguin yah...', dur: 2000, fs: 0.17, title: '♥', tone: 'rose', music: true },
+    { text: 'sebenernya...', dur: 1800, fs: 0.18, title: '♥', tone: 'rose' },
+    { text: 'aku mau bilang...', dur: 2000, fs: 0.15, title: '♥', tone: 'rose' },
+    { text: 'You', dur: 1100, fs: 0.24, title: '♥ You', tone: 'gold' },
+    { text: 'Are', dur: 1100, fs: 0.24, title: '♥ Are', tone: 'gold' },
+    { text: 'My', dur: 1100, fs: 0.24, title: '♥ My', tone: 'gold' },
+    { text: 'Favorite', dur: 1200, fs: 0.22, title: '♥ Favorite', tone: 'gold' },
+    { text: 'Girls', dur: 1500, fs: 0.24, title: '♥ Girls', tone: 'gold' },
+    { text: null, dur: 6000, type: 'face', title: '♥', tone: 'sketch' },
+    { text: null, dur: 9999999, type: 'heart', manual: true, title: 'I Love You ♥', tone: 'romantic' },
+    { text: null, dur: 3000, type: 'fireworks', title: '♥ For You ♥', tone: 'romantic' },
+    { text: null, dur: 9999999, type: 'letter', title: 'Surat Untukmu ♥', tone: 'romantic' },
   ];
 
   // ═══════════ AUDIO SYSTEM (Feature 1) ═══════════
@@ -54,9 +74,37 @@
     console.warn("Background music ('music.mp3') could not be loaded.", e);
   });
 
+  // Music volume levels: normal vs ducked (so the heartbeat SFX dominates).
+  const MUSIC_BASE = 0.6;
+  const MUSIC_DUCK = 0.14;
+
   function initAudioContext() {
     if (audioCtx) return;
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  // Start the song from the top at normal volume (called at the first message).
+  function startMusic() {
+    try { bgMusic.currentTime = 0; } catch (e) { /* ignore */ }
+    bgMusic.volume = MUSIC_BASE;
+    bgMusic.play().catch(err => {
+      console.warn("Background music could not start:", err);
+    });
+  }
+
+  // Smoothly ramp the music volume (used to duck under the heartbeat and back).
+  let musicFadeTimer = null;
+  function fadeMusicTo(target, ms) {
+    if (musicFadeTimer) { clearInterval(musicFadeTimer); musicFadeTimer = null; }
+    const startVol = bgMusic.volume;
+    const steps = Math.max(1, Math.round(ms / 50));
+    let s = 0;
+    musicFadeTimer = setInterval(() => {
+      s++;
+      const v = startVol + (target - startVol) * (s / steps);
+      bgMusic.volume = Math.min(1, Math.max(0, v));
+      if (s >= steps) { clearInterval(musicFadeTimer); musicFadeTimer = null; }
+    }, 50);
   }
 
   // Heartbeat sound synthesizer (with high-frequency harmonic for small/phone speakers)
@@ -75,7 +123,7 @@
       osc1.frequency.exponentialRampToValueAtTime(20, time + 0.15);
 
       gain1.gain.setValueAtTime(0, time);
-      gain1.gain.linearRampToValueAtTime(0.8, time + 0.02);
+      gain1.gain.linearRampToValueAtTime(0.9, time + 0.02);
       gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
 
       osc1.connect(gain1);
@@ -91,10 +139,12 @@
       osc2.frequency.exponentialRampToValueAtTime(40, time + 0.15);
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(120, time);
+      filter.frequency.setValueAtTime(180, time);
 
+      // Boosted so the thump is clearly audible on small phone speakers
+      // (which can't reproduce the deep sub-bass oscillator above).
       gain2.gain.setValueAtTime(0, time);
-      gain2.gain.linearRampToValueAtTime(0.18, time + 0.02);
+      gain2.gain.linearRampToValueAtTime(0.34, time + 0.02);
       gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
 
       osc2.connect(filter);
@@ -112,8 +162,9 @@
     playPulse(0.18);
   }
 
-  // Whoosh transition sound synthesizer
-  function playWhooshSFX() {
+  // Whoosh transition sound synthesizer. `peak` controls loudness so the
+  // countdown can use a louder whoosh than the regular text transitions.
+  function playWhooshSFX(peak = 0.15) {
     if (!audioCtx) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
@@ -131,7 +182,7 @@
     filter.Q.value = 3.0;
 
     gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.15);
+    gain.gain.linearRampToValueAtTime(peak, audioCtx.currentTime + 0.15);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
 
     osc.connect(filter);
@@ -223,6 +274,111 @@
     for (let y = 0; y < S; y += gap) {
       for (let x = 0; x < S; x += gap) {
         if (data[(y * S + x) * 4 + 3] > 128) {
+          pts.push(
+            (x - halfS) * screenScale + halfW,
+            (y - halfS) * screenScale + halfH
+          );
+        }
+      }
+    }
+    return pts;
+  }
+
+  // ═══════════ PHOTO → PARTICLE SKETCH ═══════════
+  // Her photo is turned into a particle "sketch": edge detection traces the
+  // outline + facial features, very dark pixels fill in the hair, and a centred
+  // elliptical mask drops the busy background.
+  const faceImg = new Image();
+  let faceReady = false;
+  faceImg.onload = () => { faceReady = true; };
+  faceImg.onerror = () => { console.warn("Face image ('muka.jpeg') could not be loaded."); };
+  faceImg.src = 'muka.jpeg';
+
+  function sampleImageSketch() {
+    if (!faceReady) return [];
+    const iw = faceImg.naturalWidth, ih = faceImg.naturalHeight;
+    if (!iw || !ih) return [];
+
+    oCtx.clearRect(0, 0, S, S);
+    // Fit the photo inside the S×S sampling box ("contain"), centred.
+    const fit = Math.min(S / iw, S / ih) * 0.96;
+    const dw = iw * fit, dh = ih * fit;
+    const imgLeft = (S - dw) / 2;
+    const imgTop  = (S - dh) / 2;
+
+    let data;
+    try {
+      oCtx.drawImage(faceImg, imgLeft, imgTop, dw, dh);
+      data = oCtx.getImageData(0, 0, S, S).data;
+    } catch (e) {
+      // e.g. a tainted canvas when opened via file:// — fail soft.
+      console.warn('Could not read photo pixels (serve over http to enable):', e);
+      return [];
+    }
+
+    // ── Pre-compute a full luminance map for fast neighbour lookups ──
+    const lumMap = new Float32Array(S * S);
+    for (let i = 0; i < S * S; i++) {
+      const o = i * 4;
+      // Transparent pixels (outside drawn image) → treat as white
+      lumMap[i] = data[o + 3] > 10
+        ? 0.299 * data[o] + 0.587 * data[o + 1] + 0.114 * data[o + 2]
+        : 255;
+    }
+
+    const pts = [];
+    // Finer grid so facial features aren't lost between samples
+    const gap = isMobile ? 3 : 2;
+    const screenScale = Math.min(W, H) / S;
+    const halfS = S / 2, halfW = W / 2, halfH = H / 2;
+
+    // ── Elliptical mask centred on the *drawn image*, not the canvas ──
+    // This properly excludes the tiled background behind her.
+    const mcx = imgLeft + dw / 2;
+    const mcy = imgTop + dh / 2;
+    const mrx = dw * 0.46;
+    const mry = dh * 0.50;
+
+    for (let y = 1; y < S - 1; y += gap) {
+      for (let x = 1; x < S - 1; x += gap) {
+        // Elliptical mask — everything outside is background, skip it
+        const enx = (x - mcx) / mrx;
+        const eny = (y - mcy) / mry;
+        if (enx * enx + eny * eny > 1) continue;
+
+        const c = lumMap[y * S + x];
+
+        // ── KEY FIX: Sobel edge detection with 1px offset ──
+        // (Old code used `gap` as offset which was 4-5 pixels apart,
+        //  making it impossible to detect fine facial features.)
+        const gx = lumMap[y * S + (x + 1)] - lumMap[y * S + (x - 1)];
+        const gy = lumMap[(y + 1) * S + x] - lumMap[(y - 1) * S + x];
+        const edgeMag = Math.sqrt(gx * gx + gy * gy);
+
+        // ── Multi-criteria sampling for a natural pencil-sketch look ──
+        // Darkness: 0 (white) → 1 (black)
+        const darkness = 1 - c / 255;
+        // Normalised edge strength: 0 → 1
+        const edgeScore = Math.min(edgeMag / 45, 1.0);
+
+        let keep = false;
+
+        // 1. Strong edges → always keep (face outline, eyes, nose, lips)
+        if (edgeScore > 0.45) keep = true;
+
+        // 2. Very dark areas → always keep (hair, eyebrows, pupils)
+        if (c < 60) keep = true;
+
+        // 3. Dark mid-tones → probabilistic (eye areas, shadows, lips)
+        if (c < 100 && Math.random() < darkness * 0.65) keep = true;
+
+        // 4. Medium edges on medium tones → keep (nose bridge, jawline)
+        if (edgeScore > 0.25 && c < 150) keep = true;
+
+        // 5. Subtle shading on lighter areas → sparse dots for depth
+        if (c < 160 && darkness > 0.3 && Math.random() < darkness * 0.3) keep = true;
+
+        if (keep) {
           pts.push(
             (x - halfS) * screenScale + halfW,
             (y - halfS) * screenScale + halfH
@@ -334,6 +490,43 @@
   function updateParticles(now) {
     const step = SEQ[seqIdx];
     const isHeart = step && step.type === 'heart';
+    const isFace = step && step.type === 'face';
+
+    if (isFace) {
+      const cx = W / 2;
+      const cy = H / 2;
+      for (let i = 0; i < PARTICLE_N; i++) {
+        const dx = px[i] - cx;
+        const dy = py[i] - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Reset particle if it goes offscreen, fades out, or randomly to create continuous stream
+        if (pal[i] <= 0.05 || dist > Math.max(W, H) * 0.55 || Math.random() < 0.008) {
+          const angle = Math.random() * Math.PI * 2;
+          const r = Math.random() * 90; // start near center portrait
+          px[i] = cx + Math.cos(angle) * r;
+          py[i] = cy + Math.sin(angle) * r;
+          
+          // Velocity radiating outwards + slight float upwards
+          const speed = 0.8 + Math.random() * 2.8;
+          pvx[i] = Math.cos(angle) * speed;
+          pvy[i] = Math.sin(angle) * speed - 0.3;
+          
+          pal[i] = 0.4 + Math.random() * 0.6; // random opacity/life
+          psz[i] = Math.random() * 1.5 + 0.6;
+        } else {
+          // Move
+          px[i] += pvx[i];
+          py[i] += pvy[i];
+          // Friction/drift
+          pvx[i] *= 0.99;
+          pvy[i] *= 0.99;
+          // Fade out
+          pal[i] -= 0.003;
+        }
+      }
+      return;
+    }
 
     for (let i = 0; i < PARTICLE_N; i++) {
       let tx = ptx[i];
@@ -492,7 +685,7 @@
       ctx.beginPath();
       for (let i = 0; i < PARTICLE_N; i++) {
         if (pal[i] <= 0) continue;
-        const r = psz[i] * 4;
+        const r = psz[i] * 4 * pal[i];
         ctx.moveTo(px[i] + r, py[i]);
         ctx.arc(px[i], py[i], r, 0, 6.2832);
       }
@@ -505,7 +698,7 @@
     const coreScale = isMobile ? 1.3 : 1.0;
     for (let i = 0; i < PARTICLE_N; i++) {
       if (pal[i] <= 0) continue;
-      const r = psz[i] * coreScale;
+      const r = psz[i] * coreScale * pal[i];
       ctx.moveTo(px[i] + r, py[i]);
       ctx.arc(px[i], py[i], r, 0, 6.2832);
     }
@@ -518,7 +711,7 @@
       ctx.beginPath();
       for (let i = 0; i < PARTICLE_N; i++) {
         if (pal[i] <= 0) continue;
-        const r = psz[i] * 0.35;
+        const r = psz[i] * 0.35 * pal[i];
         ctx.moveTo(px[i] + r, py[i]);
         ctx.arc(px[i], py[i], r, 0, 6.2832);
       }
@@ -618,6 +811,7 @@
   let clickedOpen = false;
   let lastHeartbeatCycle = -1;
   let typingInterval = null;
+  let continueTimer = null;
 
   function startSequence(now) {
     seqIdx = 0;
@@ -627,10 +821,16 @@
     // Reset overlays
     heartMsg.classList.remove('visible', 'beating');
     letterContainer.classList.remove('visible');
+    faceOverlay.classList.remove('visible');
     btnRestart.classList.remove('show');
+    btnContinue.classList.remove('show');
+
+    // Silence the music again until the first message re-triggers it.
+    bgMusic.pause();
 
     lastHeartbeatCycle = -1;
     if (typingInterval) clearInterval(typingInterval);
+    if (continueTimer) { clearTimeout(continueTimer); continueTimer = null; }
 
     triggerStep(0);
   }
@@ -644,41 +844,51 @@
       document.title = step.title;
     }
 
-    // Feature 7: Dynamic color target setup
-    if (idx < 3) {
-      // Countdown: Cyan / Blueish-white
-      tCoreR = 190; tCoreG = 240; tCoreB = 255;
-      tGlowR = 100; tGlowG = 190; tGlowB = 255;
-    } else if (step.text && idx >= 3 && idx <= 7) {
-      // Text words: Warm golden glow
-      tCoreR = 255; tCoreG = 220; tCoreB = 120;
-      tGlowR = 255; tGlowG = 150; tGlowB = 40;
-    } else {
-      // Heart & finale: Pink / Magenta romantic colors
-      tCoreR = 255; tCoreG = 110; tCoreB = 180;
-      tGlowR = 255; tGlowG = 30; tGlowB = 130;
-    }
+    // Hide the manual "Lanjut" button on every step; the heart step re-shows it.
+    if (continueTimer) { clearTimeout(continueTimer); continueTimer = null; }
+    btnContinue.classList.remove('show');
 
-    // Play SFX (Feature 1)
-    if (step.text || step.type === 'fireworks') {
+    // Feature 7: Dynamic color target setup (per-step tone)
+    const tone = TONES[step.tone] || TONES.romantic;
+    tCoreR = tone.cr; tCoreG = tone.cg; tCoreB = tone.cb;
+    tGlowR = tone.gr; tGlowG = tone.gg; tGlowB = tone.gb;
+
+    // Mod 1: Start the background music exactly when its message appears.
+    if (step.music) startMusic();
+
+    // Play SFX (Feature 1) — louder whoosh for the 3-2-1 countdown.
+    if (step.tone === 'cool') {
+      playWhooshSFX(0.42);
+    } else if (step.text || step.type === 'fireworks') {
       playWhooshSFX();
     }
 
     // Step type behaviors
     if (step.type === 'heart') {
       triggerFlash();
+      faceOverlay.classList.remove('visible');
       const pts = generateHeartPoints();
       assignTargets(pts);
       setTimeout(() => heartMsg.classList.add('visible', 'beating'), 700);
 
       // Will be triggered automatically by the render loop
       lastHeartbeatCycle = -1;
+
+      // Mod 2: duck the music so the heartbeat clearly dominates.
+      fadeMusicTo(MUSIC_DUCK, 700);
+
+      // Mod 3: this step does NOT auto-advance — reveal the "Lanjut" button
+      // after the animation settles (~3s) so the user continues manually.
+      continueTimer = setTimeout(() => btnContinue.classList.add('show'), 3000);
     } else if (step.type === 'fireworks') {
       heartMsg.classList.remove('visible', 'beating');
+      faceOverlay.classList.remove('visible');
+      fadeMusicTo(MUSIC_BASE, 800); // restore music after the heart phase
       scatterParticles();
       spawnFireworks();
     } else if (step.type === 'letter') {
       heartMsg.classList.remove('visible', 'beating');
+      faceOverlay.classList.remove('visible');
       scatterSlowly();
 
       // Feature 6: Typing animation trigger
@@ -688,15 +898,23 @@
           btnRestart.classList.add('show');
         });
       }, 600);
+    } else if (step.type === 'face') {
+      triggerFlash();
+      heartMsg.classList.remove('visible', 'beating');
+      // Show the face image overlay with CSS glow & sparkle effects
+      faceOverlay.classList.add('visible');
+      // Scatter particles as ambient floating background behind the portrait
+      scatterSlowly();
     } else if (step.text) {
       triggerFlash();
       heartMsg.classList.remove('visible', 'beating');
+      faceOverlay.classList.remove('visible');
       const pts = sampleText(step.text, step.fs);
       assignTargets(pts);
     }
 
-    // Skip hint visibility logic (Feature 3)
-    if (step.text && idx < 8) {
+    // Skip hint visibility logic (Feature 3) — show for any on-screen text step.
+    if (step.text) {
       skipHint.classList.add('visible');
     } else {
       skipHint.classList.remove('visible');
@@ -709,6 +927,9 @@
     const step = SEQ[seqIdx];
     if (!step) return;
 
+    // Manual steps (the heart) never auto-advance — they wait for the button.
+    if (step.manual) return;
+
     const elapsed = now - seqStart;
     if (elapsed >= step.dur) {
       seqIdx++;
@@ -718,16 +939,22 @@
     }
   }
 
+  // Advance to the next step (shared by tap-to-skip and the Lanjut button).
+  function advanceStep() {
+    if (!started) return;
+    if (seqIdx >= SEQ.length - 1) return;
+    seqIdx++;
+    seqStart = performance.now();
+    triggerStep(seqIdx);
+  }
+
   // Feature 3: Tap to Skip
   function skipCurrentStep() {
     if (!started) return;
     const step = SEQ[seqIdx];
-    if (!step || step.type === 'letter') return; // Can't skip letter phase
-
-    seqIdx++;
-    if (seqIdx >= SEQ.length) return;
-    seqStart = performance.now();
-    triggerStep(seqIdx);
+    // Letter is the end, and manual steps (heart) only advance via the button.
+    if (!step || step.type === 'letter' || step.manual) return;
+    advanceStep();
   }
 
   // ═══════════ TYPING ANIMATION (Feature 6) ═══════════
@@ -864,8 +1091,15 @@
   btnOpen.addEventListener('click', () => {
     clickedOpen = true;
     initAudioContext();
-    bgMusic.play().catch(err => {
-      console.warn("Background music autoplay was blocked/failed:", err);
+    // Unlock audio inside this user gesture (play+pause silently) so the song
+    // can be started LATER, at the "nungguin yah..." message, without the
+    // browser blocking it as autoplay.
+    bgMusic.volume = 0;
+    bgMusic.play().then(() => {
+      bgMusic.pause();
+      try { bgMusic.currentTime = 0; } catch (e) { /* ignore */ }
+    }).catch(err => {
+      console.warn("Audio unlock failed:", err);
     });
     landingScreen.classList.add('hide');
     // Delay sequence start until intro pulse animation finishes
@@ -880,8 +1114,104 @@
     startSequence(performance.now());
   });
 
+  // Mod 3: Manual "Lanjut" button — advance from the heart phase to the finale.
+  btnContinue.addEventListener('click', (e) => {
+    e.stopPropagation(); // Avoid triggering tap-to-skip on the canvas underneath
+    btnContinue.classList.remove('show');
+    advanceStep();
+  });
+
   // Tap to skip event listener on canvas (Feature 3)
   canvas.addEventListener('click', skipCurrentStep);
+
+  // ═══════════ PROCESS FACE IMAGE BACKGROUND REMOVAL ═══════════
+  const facePortrait = document.getElementById('facePortrait');
+  if (facePortrait) {
+    const faceImg = new Image();
+    faceImg.src = 'muka.png';
+    faceImg.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = faceImg.naturalWidth;
+      canvas.height = faceImg.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(faceImg, 0, 0);
+      
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const w = canvas.width;
+      const h = canvas.height;
+      
+      const visited = new Uint8Array(w * h);
+      const queue = [];
+      const threshold = 230; // Brightness threshold for background pixels
+      
+      function enqueue(x, y) {
+        if (x < 0 || x >= w || y < 0 || y >= h) return;
+        const idx = y * w + x;
+        if (visited[idx]) return;
+        
+        const r = data[idx * 4];
+        const g = data[idx * 4 + 1];
+        const b = data[idx * 4 + 2];
+        
+        // If color is close to white, it is a background pixel
+        if (r > threshold && g > threshold && b > threshold) {
+          visited[idx] = 1;
+          queue.push(idx);
+        }
+      }
+      
+      // Seed from borders
+      for (let x = 0; x < w; x++) {
+        enqueue(x, 0);
+        enqueue(x, h - 1);
+      }
+      for (let y = 0; y < h; y++) {
+        enqueue(0, y);
+        enqueue(w - 1, y);
+      }
+      
+      // Flood fill BFS
+      let head = 0;
+      while (head < queue.length) {
+        const idx = queue[head++];
+        const x = idx % w;
+        const y = Math.floor(idx / w);
+        
+        // Set background pixel transparency to 0
+        data[idx * 4 + 3] = 0;
+        
+        enqueue(x + 1, y);
+        enqueue(x - 1, y);
+        enqueue(x, y + 1);
+        enqueue(x, y - 1);
+      }
+      
+      // Secondary pass: Fade out near margins to be absolutely sure no edge artifacts exist
+      const cx = w / 2;
+      const cy = h / 2;
+      const maxDist = Math.min(w, h) * 0.44;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const dx = x - cx;
+          const dy = y - cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist > maxDist) {
+            const factor = Math.min(1, (dist - maxDist) / (Math.min(w, h) * 0.1));
+            const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+            if (brightness > 200) {
+              data[idx + 3] = Math.min(data[idx + 3], Math.round(data[idx + 3] * (1 - factor)));
+            }
+          }
+        }
+      }
+      
+      ctx.putImageData(imgData, 0, 0);
+      facePortrait.src = canvas.toDataURL();
+    };
+  }
 
   // Kickstart canvas sizes
   resize();
